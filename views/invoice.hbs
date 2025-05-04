@@ -1,93 +1,128 @@
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Create Invoice</title>
-    <style>
-      input, select { margin: 5px; padding: 4px; } table { width: 100%;
-      border-collapse: collapse; margin-top: 20px; } th, td { border: 1px solid
-      #ccc; padding: 8px; text-align: center; }
-    </style>
-  </head>
-  <body>
-    <h2>Create Invoice</h2>
-    <button id="btnInvoiceDelete" style="margin-left:20% ;">Delete</button>
-    <form id="invoiceForm">
-      <label>Customer Name:
-        <input type="text" id="strCustName" name="strName" required /></label>
-      <label>Email:
-        <input
-          type="email"
-          id="strCustEmail"
-          name="strEmail"
-          required
-        /></label><br />
-      <label>Invoice No:
-        <input
-          type="text"
-          id="strInvoiceNo"
-          name="strInvoiceNo"
-          required
-        /></label>
-      <label>Document Date:
-        <input type="date" id="datDocument" name="doc_date" required /></label>
-      <label>Due Date: <input type="date" id="datDue" name="due_date" /></label>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Invoice</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .invoice-header { background-color: #f8f9fa; border-radius: 10px; }
+    .total-box { background-color: #e9ecef; padding: 15px; border-radius: 5px; }
+    .item-row:hover { background-color: #f1f1f1; }
+  </style>
+</head>
+<body>
+  <div class="container py-5" style="margin-left: 9%;">
+    <div class="invoice-header p-4 mb-4 shadow-sm">
+      <h2 class="text-center mb-4">Create Invoice</h2>
+      <div id="alertMessage" class="alert d-none" role="alert">alert</div>
+      <div class="d-flex justify-content-end gap-2 mb-3">
+        <button id="btnInvoiceDelete" class="btn btn-danger">
+          <i class="fas fa-trash me-2"></i>Delete
+        </button>
+        <button id="btnInvoiceUpdate" class="btn btn-warning">
+          <i class="fas fa-pen me-2"></i>Update
+        </button>
+      </div>
 
-      <table id="invoiceTable">
-        <thead>
-          <tr>
-            <th>Item Name</th>
-            <th>Qty</th>
-            <th>Unit Price</th>
-            <th>Tax %</th>
-            <th>Total</th>
-            <th><button type="button" onclick="addRow()">＋</button></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><input type="text" id="strItemName" name="desc[]" /></td>
-            <td><input
-                type="number"
-                name="qty[]"
-                value="1"
-                onchange="calculateTotal()"
-              /></td>
-            <td><input
-                type="number"
-                name="price[]"
-                value="0"
-                onchange="calculateTotal()"
-              /></td>
-            <td><input
-                type="number"
-                name="tax[]"
-                value="0"
-                onchange="calculateTotal()"
-              /></td>
-            <td><input type="text" name="total[]" readonly /></td>
-            <td><button type="button" onclick="removeRow(this)">🗑️</button></td>
-          </tr>
-        </tbody>
-      </table>
+      <form id="invoiceForm" class="needs-validation" novalidate>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label for="strCustName" class="form-label">Customer Name</label>
+            <input type="text" class="form-control" id="strCustName" required>
+          </div>
+          <div class="col-md-4">
+            <label for="strCustEmail" class="form-label">Email</label>
+            <input type="email" class="form-control" id="strCustEmail" required>
+          </div>
+          <div class="col-md-4">
+            <label for="strInvoiceNo" class="form-label">Invoice No</label>
+            <input type="text" class="form-control" id="strInvoiceNo" required>
+          </div>
+        </div>
 
-      <label>Discount (%):
-        <input
-          type="number"
-          id="discount"
-          value="0"
-          onchange="calculateTotal()"
-        /></label><br />
-      <label>Note:
-        <textarea name="note" rows="3" cols="50"></textarea></label><br />
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label for="datDocument" class="form-label">Document Date</label>
+            <input type="date" class="form-control" id="datDocument" required>
+          </div>
+          <div class="col-md-4">
+            <label for="datDue" class="form-label">Due Date</label>
+            <input type="date" class="form-control" id="datDue">
+          </div>
+          <div class="col-md-4">
+            <label for="discount" class="form-label">Discount (%)</label>
+            <input type="number" class="form-control" id="discount" value="0" min="0" max="100">
+          </div>
+        </div>
 
-      <h3>Subtotal: ₹<span id="subtotal">0</span></h3>
-      <h3>Total Tax: ₹<span id="tax_total">0</span></h3>
-      <h3>Discount: ₹<span id="discount_value">0</span></h3>
-      <h2>Grand Total: ₹<span id="grand_total">0</span></h2>
+        <div class="table-responsive mb-4">
+          <table class="table table-hover" id="invoiceTable">
+            <thead class="table-light">
+              <tr>
+                <th>Item Name</th>
+                <th width="10%">Qty</th>
+                <th width="15%">Unit Price</th>
+                <th width="10%">Tax %</th>
+                <th width="15%">Total</th>
+                <th width="5%"><button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="fas fa-plus"></i></button></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="item-row">
+                <td><input type="text" class="form-control" name="desc[]" required></td>
+                <td><input type="number" class="form-control qty" name="qty[]" value="1" min="1" onchange="calculateTotal()"></td>
+                <td><input type="number" class="form-control price" name="price[]" value="0" min="0" step="0.01" onchange="calculateTotal()"></td>
+                <td><input type="number" class="form-control tax" name="tax[]" value="0" min="0" onchange="calculateTotal()"></td>
+                <td><input type="text" class="form-control total" name="total[]" readonly></td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <button type="button" onclick="saveInvoice()" id="invoiceSubmission">Save
-        Invoice</button>
-    </form>
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <label for="note" class="form-label">Note</label>
+            <textarea class="form-control" id="note" rows="3"></textarea>
+          </div>
+        </div>
 
-  </body>
+        <div class="total-box mb-4">
+          <div class="row">
+            <div class="col-md-4">
+              <h5>Subtotal: <span class="float-end">₹<span id="subtotal">0.00</span></span></h5>
+            </div>
+            <div class="col-md-4">
+              <h5>Total Tax: <span class="float-end">₹<span id="tax_total">0.00</span></span></h5>
+            </div>
+            <div class="col-md-4">
+              <h5>Discount: <span class="float-end">₹<span id="discount_value">0.00</span></span></h5>
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <h3 class="text-primary">Grand Total: <span class="float-end">₹<span id="grand_total">0.00</span></span></h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+          <button type="button" class="btn btn-primary btn-lg" onclick="saveInvoice('SAVE')">
+            <i class="fas fa-save me-2"></i>Save Invoice
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Your existing JS logic here (calculateTotal(), addRow(), etc.)
+  </script>
+</body>
 </html>

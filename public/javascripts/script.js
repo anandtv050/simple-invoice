@@ -43,7 +43,8 @@ function calculateTotal() {
     input.addEventListener('input', calculateTotal);
   });
 
-  function saveInvoice() {
+
+  function saveInvoice(blnSaveOrUpdate) {
 
     let arrItemDetails =[];
     document.querySelectorAll("#invoiceTable tbody tr").forEach(row=>{
@@ -62,7 +63,8 @@ function calculateTotal() {
         "strstrInvoiceNoAjxKey" :$('#strInvoiceNo').val(),
         'datDocumentAjxKey' :$('#datDocument').val(),
         'datDueAjxKey':$('#datDue').val(), 
-        'arrItemDetailsAjxKey':arrItemDetails
+        'arrItemDetailsAjxKey':arrItemDetails,
+        'blnSaveOrUpdateAjxKey'   :blnSaveOrUpdate
     }
 
     //check the form valid 
@@ -124,43 +126,53 @@ alert("saved success")
     getDocumentDetailsBynumber(strInvoiceNumber)
   })
 
-  function getDocumentDetailsBynumber(strInvoiceNumber) {
+  //need to fix navigat from report to invoice
+  function getDocumentDetailsBynumber (strInvoiceNumber,blnReport=false) {
+    if(blnReport){
+        window.location.href = `/invoice`;
+        fetchInvoiceDetails(strInvoiceNumber)
+    }else{
+      fetchInvoiceDetails(strInvoiceNumber)
+    }
+  }
+
+  function fetchInvoiceDetails(strInvoiceNumber){
     $.ajax({
-        url:'/getDocumentDetailByNumber?invoiceNumber='+strInvoiceNumber,
-        method:'GET',
-        success:(response)=>{
-            if(response && response.length>0){
-                console.log("response get invoice ",response);
-                const invoice = response[0];  // Access the first invoice in the array
-                $('#datDocument').val(invoice.dat_document.split("T")[0]);
-                $('#datDue').val(invoice.dat_due.split("T")[0]);
-                $('#tax_total').text(invoice.dbl_inv_tax);
-                $('#discount').val(invoice.dbl_inv_discount);
-                $('#grand_total').text(invoice.dbl_grand_total);
-                $('textarea[name="note"]').val(invoice.vchr_remarks || '');
-                
-            const tbody = $('#invoiceTable tbody');
-            tbody.empty(); // Remove existing rows
+      url:'/getDocumentDetailByNumber?invoiceNumber='+strInvoiceNumber,
+      method:'GET',
+      success:(response)=>{
+          if(response && response.length>0){
+              console.log("response get invoice ",response);
+              const invoice = response[0];  // Access the first invoice in the array
+              $('#datDocument').val(invoice.dat_document.split("T")[0]);
+              $('#datDue').val(invoice.dat_due.split("T")[0]);
+              $('#tax_total').text(invoice.dbl_inv_tax);
+              $('#discount').val(invoice.dbl_inv_discount);
+              $('#grand_total').text(invoice.dbl_grand_total);
+              $('textarea[name="note"]').val(invoice.vchr_remarks || '');
+              
+          const tbody = $('#invoiceTable tbody');
+          tbody.empty(); // Remove existing rows
 
-            invoice.items.forEach(item => {
-            const row = `
-                <tr>
-                <td><input type="text" name="desc[]" value="${item.vchr_item_name}"></td>
-                <td><input type="number" name="qty[]" value="${item.int_quantity}" onchange="calculateTotal()"></td>
-                <td><input type="number" name="price[]" value="${item.dbl_unit_price}" onchange="calculateTotal()"></td>
-                <td><input type="number" name="tax[]" value="${item.dbl_taxrate}" onchange="calculateTotal()"></td>
-                <td><input type="text" name="total[]" readonly></td>
-                <td><button type="button" onclick="removeRow(this)">🗑️</button></td>
-                </tr>`;
-            tbody.append(row);
+          invoice.items.forEach(item => {
+              const row = `
+              <tr class="item-row">
+                <td><input type="text" class="form-control" name="desc[]" value="${escapeHtml(item.vchr_item_name)}" required></td>
+                <td><input type="number" class="form-control qty" name="qty[]" value="${item.int_quantity}" min="1" onchange="calculateTotal()"></td>
+                <td><input type="number" class="form-control price" name="price[]" value="${item.dbl_unit_price}" min="0" step="0.01" onchange="calculateTotal()"></td>
+                <td><input type="number" class="form-control tax" name="tax[]" value="${item.dbl_taxrate}" min="0" onchange="calculateTotal()"></td>
+                <td><input type="text" class="form-control total" name="total[]" readonly></td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
+              </tr>`;
+              tbody.append(row);
             });
+          showAlert('success', `Invoice ${strInvoiceNumber} loaded successfully`);
 
-            calculateTotal();
+          calculateTotal();
 
-            }
-        }
-
-    })
+          }
+      }
+  })
   }
 
   $("#btnInvoiceDelete").on('click',()=>{
@@ -184,3 +196,92 @@ alert("saved success")
 
     })
   }
+
+  $("#btnInvoiceUpdate").on('click',function(){
+    let strDocumentNo = $("#btnInvoiceUpdate").val();
+    saveInvoice("UPDATE")
+
+  })
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function validateForm(){
+    let blnIsValid = true;
+    let strMessage = "";
+    
+  }
+
+  function showAlert(strType,strMessage){
+    const alertBox = document.getElementById('alertMessage');
+    alertBox.className = `alert alert-${strType}`;
+    alertBox.innerText = strMessage
+    alertBox.classList.remove('d-none');
+    setTimeout(() => {
+        alertBox.classList.add('d-none');
+    }, 4000); // Hide after 4 seconds
+  }
+  
+
+ /* $.ajax({
+    url:"/updateDocument?strInvoiceNumber="+strDocumentNo,
+    method:'get',
+    success:(response)=>{
+        if(response){
+            alert("the document deleted")
+        }
+    }
+ }) */
+
+    $("#btnActivitySearch").on('click',()=>{
+        objSearchFields ={
+            strInvoiceNoAjxKey :$("#strInvoiceNo").val().trim(),
+            strCustomerNameAjxKey :$("#strCustomerName").val().trim(),
+            datDocFromAjxKey :$("#datFromDoc").val(),
+            datDOcToAjxKey :$("#datToDoc").val(),
+            // dblAmountRangeFromAjxKey :$("$")
+        }
+
+        $.ajax({
+            url:"/getreportdetails",
+            method:"post",
+            data:JSON.stringify(objSearchFields),
+            success:(response)=>{
+              const tableBody = $("table tbody");
+              tableBody.empty(); // Clear any existing rows
+          
+              const arrReportDetails = response.arrReportDetails;
+          
+              if (arrReportDetails.length === 0) {
+                  tableBody.append(`<tr><td colspan="6" class="text-center">No records found</td></tr>`);
+                  return;
+              }
+          
+              arrReportDetails.forEach((invoice) => {
+                  const row = `
+                      <tr>
+                          <td>${invoice.invoiceNo}</td>
+                          <td>${invoice.docDate}</td>
+                          <td>${invoice.customerName}</td>
+                          <td>₹${parseFloat(invoice.grandTotal).toFixed(2)}</td>
+                          <td>${invoice.dueDate}</td>
+                          <td>
+                              <button class="btn btn-sm btn-outline-primary" onclick='getDocumentDetailsBynumber(${JSON.stringify(invoice.invoiceNo)},true)'>
+                                  <i class="fas fa-eye"></i>
+                              </button>
+                          </td>
+                      </tr>
+                  `;
+                  tableBody.append(row);
+              });
+                
+            }
+
+        })
+    })

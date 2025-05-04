@@ -1,6 +1,7 @@
+const { Client } = require("pg");
 var db = require("../config/db");
 const format = require('pg-format');
-
+const { json } = require("express");
 
 module.exports = {
 
@@ -9,6 +10,7 @@ module.exports = {
         const client = await db.connect();
 
         try{
+
             await client.query('BEGIN');
             const {
                 strCustNameAjxKey: strCustomerName,
@@ -20,16 +22,32 @@ module.exports = {
                 discount = 0,
                 arrItemDetailsAjxKey: items
             } = objInvDetails;
-            
+            //check update , delete existing rows 
+            if(objInvDetails.blnSaveOrUpdateAjxKey =='UPDATE'){
+                
+                //check the invoice exist or not if exist take invoicepk 
+                const objResult = await client.query(`SELECT pk_bint_invoice_id FROM tbl_invoice WHERE vchr_invoice_no =$1 AND vchr_document_status ='N'`,[strInvoiceNo])
+                if(objResult.rows.length===0) {
+                    throw new Error(`Invoice number ${strInvoiceNo} not found for update`);
+                }
+                intInvoicePk = objResult.rows[0].pk_bint_invoice_id;
+                    // await client.query(`UPDATE tbl_invoice SET vchr_document_status ='M' WHERE pk_bint_invoice_id =$1`,[intInvoicePk])
+                    await client.query('DELETE FROM tbl_invoice WHERE pk_bint_invoice_id = $1',[intInvoicePk])
+
+                    await client.query('DELETE FROM tbl_invoice_items WHERE fk_bint_invoice_id = $1',[intInvoicePk])
+                
+            }else {
+                const blnInvoiceNoExist = await client.query(`
+                    SELECT 1 FROM tbl_invoice WHERE vchr_invoice_no =$1 `,[strInvoiceNo])
+                    if (blnInvoiceNoExist.rowCount > 0) {
+                        // If the invoice number already exists, return an error
+                        throw new Error(`Invoice number ${strInvoiceNo} already exists`);
+                    }
+            }
             //insert into tbl_invoice
             const parsedDueDate = (datDue && datDue.trim() !== '') ? datDue : null;
             //check the document no already exist 
-            const blnInvoiceNoExist = await client.query(`
-                SELECT 1 FROM tbl_invoice WHERE vchr_invoice_no =$1 `,[strInvoiceNo])
-                if (blnInvoiceNoExist.rowCount > 0) {
-                    // If the invoice number already exists, return an error
-                    throw new Error(`Invoice number ${strInvoiceNo} already exists`);
-                }
+            
             const invoiceResult = await client.query(
                 `INSERT INTO tbl_invoice (
                   fk_bint_user_id, fk_bint_customer_id, vchr_invoice_no,
@@ -177,10 +195,96 @@ module.exports = {
             if ( blnInvoiceNoExist.rowCount === 0) {
                 return false
                 }
-        await client.query(`UPDATE tbl_invoice SET vchr_document_status = 'D' WHERE vchr_invoice_no = $1`,
-            [strInvoiceNo]);
+        await client.query(`UPDATE tbl_invoice SET vchr_document_status = 'D' WHERE vchr_invoice_no = $1`,[strInvoiceNo]);
             console.log("deleted    e",strInvoiceNo);
             return true;
 
+    },
+    getReportDetails: async (searchFilters) => {
+        const client = await db.connect();
+        try {
+
+        const firstKey = Object.keys(searchFilters)[0];
+
+        let parsedFilters = {};
+        try {
+        parsedFilters = JSON.parse(firstKey);
+        } catch (e) {
+        console.error('Failed to parse search filters:', e);
+        }
+            console.log('Received filters:', parsedFilters);
+
+            const conditions = [];
+            const params = [];
+            let paramIndex = 1;
+    
+            // 1. Invoice Number (exact match)
+            if (parsedFilters.strInvoiceNoAjxKey) {
+                conditions.push(`inv.vchr_invoice_no = $${paramIndex}`);
+                params.push(parsedFilters.strInvoiceNoAjxKey);
+                paramIndex++;
+            }
+    
+            // 2. Customer Name (case-insensitive partial match)
+            if (parsedFilters.strCustomerNameAjxKey) {
+                conditions.push(`c.vchr_cust_name ILIKE $${paramIndex}`);
+                params.push(`%${parsedFilters.strCustomerNameAjxKey}%`);
+                paramIndex++;
+            }
+    
+            // 3. Date Range (document date)
+            if (parsedFilters.datDocFromAjxKey) {
+                conditions.push(`inv.dat_document >= $${paramIndex}`);
+                params.push(parsedFilters.datDocFromAjxKey);
+                paramIndex++;
+            }
+            if (parsedFilters.datDOcToAjxKey) {
+                conditions.push(`inv.dat_document <= $${paramIndex}`);
+                params.push(parsedFilters.datDOcToAjxKey);
+                paramIndex++;
+            }
+    
+            // Build the query
+            const baseQuery = `
+                SELECT 
+                    inv.pk_bint_invoice_id AS id,
+                    inv.vchr_invoice_no AS "invoiceNo",
+                    TO_CHAR(inv.dat_document, 'YYYY-MM-DD') AS "docDate",
+                    TO_CHAR(inv.dat_due, 'YYYY-MM-DD') AS "dueDate",
+                    c.vchr_cust_name AS "customerName",
+                    inv.dbl_grand_total AS "grandTotal",
+                    inv.vchr_document_status AS status,
+                    inv.vchr_remarks AS remarks,
+                    (
+                        SELECT COALESCE(
+                            json_agg(
+                                json_build_object(
+                                    'name', i.vchr_item_name,
+                                    'quantity', i.int_quantity,
+                                    'price', i.dbl_unit_price
+                                )
+                            ), 
+                            '[]'::json
+                        )
+                        FROM tbl_invoice_items i
+                        WHERE i.fk_bint_invoice_id = inv.pk_bint_invoice_id
+                    ) AS items
+                FROM tbl_invoice inv
+                LEFT JOIN tbl_customer c ON inv.fk_bint_customer_id = c.pk_bint_customer_id
+            `;
+    
+            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+            const orderClause = `ORDER BY inv.dat_document DESC LIMIT 100`;
+            const fullQuery = `${baseQuery} ${whereClause} ${orderClause}`;
+
+            const result = await client.query(fullQuery, params);
+            return result.rows;
+    
+        } catch (error) {
+            console.error('Database error:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 }

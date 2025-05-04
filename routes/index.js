@@ -49,4 +49,19 @@ router.get("/deleteDocuemnt",async(req,res)=>{
     res.json({message:'DELETE_SUCCESS',incoiceNo:strInvoiceNumber})
   }
 })
+
+router.get("/activity-report",async(req,res)=>{
+res.render("activity-report")
+})
+
+router.post("/getreportdetails",async(req,res)=>{
+  const rawKeys = Object.keys(req.body);
+
+ const arrReportDetails=await invoiceHelper.getReportDetails(req.body)
+ console.log("arrReportDetails",arrReportDetails);
+ 
+ res.json({message:"SUCCESS",arrReportDetails:arrReportDetails})
+})
+
+
 module.exports = router;

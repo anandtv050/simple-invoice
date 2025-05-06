@@ -1,6 +1,8 @@
 var express = require("express");
 var router = express.Router();
 var invoiceHelper = require("../helpers/invoiceHelper");
+var csvExport = require("../helpers/invoiceCsvExports")
+var excelExports = require("../helpers/invoiceExcelExports")
 const { response } = require("../app");
 
 /* GET home page. */
@@ -63,5 +65,8 @@ router.post("/getreportdetails",async(req,res)=>{
  res.json({message:"SUCCESS",arrReportDetails:arrReportDetails})
 })
 
+router.get("/export-csv",csvExport.getCsvExports)
+  
+router.get("/export-excel",excelExports.getExcelExports)
 
 module.exports = router;

@@ -21,6 +21,12 @@ var usersRouter = require('./routes/users');
 var app = express();
 app.use(express.json());
 
+// // ⚠️ Only do this in trusted environments (e.g. internal tools)
+// hbs.handlebars = require('handlebars');
+// hbs.handlebars.compileOptions = {
+//   allowProtoPropertiesByDefault: true,
+//   allowProtoMethodsByDefault: true
+// };
 
 
 // view engine setup

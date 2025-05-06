@@ -239,49 +239,49 @@ alert("saved success")
     }
  }) */
 
-    $("#btnActivitySearch").on('click',()=>{
-        objSearchFields ={
-            strInvoiceNoAjxKey :$("#strInvoiceNo").val().trim(),
-            strCustomerNameAjxKey :$("#strCustomerName").val().trim(),
-            datDocFromAjxKey :$("#datFromDoc").val(),
-            datDOcToAjxKey :$("#datToDoc").val(),
-            // dblAmountRangeFromAjxKey :$("$")
+$("#btnActivitySearch").on('click',()=>{
+    objSearchFields ={
+        strInvoiceNoAjxKey :$("#strInvoiceNo").val().trim(),
+        strCustomerNameAjxKey :$("#strCustomerName").val().trim(),
+        datDocFromAjxKey :$("#datFromDoc").val(),
+        datDOcToAjxKey :$("#datToDoc").val(),
+        // dblAmountRangeFromAjxKey :$("$")
+    }
+
+    $.ajax({
+        url:"/getreportdetails",
+        method:"post",
+        data:JSON.stringify(objSearchFields),
+        success:(response)=>{
+          const tableBody = $("table tbody");
+          tableBody.empty(); // Clear any existing rows
+      
+          const arrReportDetails = response.arrReportDetails;
+      
+          if (arrReportDetails.length === 0) {
+              tableBody.append(`<tr><td colspan="6" class="text-center">No records found</td></tr>`);
+              return;
+          }
+      
+          arrReportDetails.forEach((invoice) => {
+              const row = `
+                  <tr>
+                      <td>${invoice.invoiceNo}</td>
+                      <td>${invoice.docDate}</td>
+                      <td>${invoice.customerName}</td>
+                      <td>₹${parseFloat(invoice.grandTotal).toFixed(2)}</td>
+                      <td>${invoice.dueDate}</td>
+                      <td>
+                          <button class="btn btn-sm btn-outline-primary" onclick='getDocumentDetailsBynumber(${JSON.stringify(invoice.invoiceNo)},true)'>
+                              <i class="fas fa-eye"></i>
+                          </button>
+                      </td>
+                  </tr>
+              `;
+              tableBody.append(row);
+          });
+            
         }
 
-        $.ajax({
-            url:"/getreportdetails",
-            method:"post",
-            data:JSON.stringify(objSearchFields),
-            success:(response)=>{
-              const tableBody = $("table tbody");
-              tableBody.empty(); // Clear any existing rows
-          
-              const arrReportDetails = response.arrReportDetails;
-          
-              if (arrReportDetails.length === 0) {
-                  tableBody.append(`<tr><td colspan="6" class="text-center">No records found</td></tr>`);
-                  return;
-              }
-          
-              arrReportDetails.forEach((invoice) => {
-                  const row = `
-                      <tr>
-                          <td>${invoice.invoiceNo}</td>
-                          <td>${invoice.docDate}</td>
-                          <td>${invoice.customerName}</td>
-                          <td>₹${parseFloat(invoice.grandTotal).toFixed(2)}</td>
-                          <td>${invoice.dueDate}</td>
-                          <td>
-                              <button class="btn btn-sm btn-outline-primary" onclick='getDocumentDetailsBynumber(${JSON.stringify(invoice.invoiceNo)},true)'>
-                                  <i class="fas fa-eye"></i>
-                              </button>
-                          </td>
-                      </tr>
-                  `;
-                  tableBody.append(row);
-              });
-                
-            }
-
-        })
     })
+}) 

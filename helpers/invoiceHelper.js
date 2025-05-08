@@ -180,7 +180,6 @@ module.exports = {
             console.log(`No invoice found with invoicenumber: ${strInvoiceNumber}`);
         }
         
-        console.log("loaddetails", result);
         return result.rows;  // Return the rows
         }catch(error) {
             console.error("Error executing query 1:", error);

@@ -285,5 +285,21 @@ module.exports = {
         } finally {
             client.release();
         }
+    },
+    UserSIgnUp:async(userDetails)=>{
+        const client = await db.connect();
+        try {
+            await client.query('BEGIN');
+            let strEmail, strUserName,strPassword ;
+            strEmail = userDetails.vchr_email;
+            strUserName = userDetails.vchr_user_name
+            strPassword = userDetails.vchr_password
+
+            strQuery = `INSERT INTO tbl_user (vchr_user_name,vchr_user_email,vchr_password,chr_status,vchr_document_status)  VALUES ($1, $2, $3, $4, $5)`
+                                            [strUserName, strEmail, strPassword, 'A', 'N']
+        }catch(error){
+            console.log(error);
+            
+        }
     }
 }

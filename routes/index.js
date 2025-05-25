@@ -1,10 +1,33 @@
 var express = require("express");
 var router = express.Router();
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+
 var invoiceHelper = require("../helpers/invoiceHelper");
 var csvExport = require("../helpers/invoiceCsvExports");
 var excelExports = require("../helpers/invoiceExcelExports");
 var pdfExports = require("../helpers/invoicePdfExports");
+var voiceHelper = require("../helpers/voiceHelper");
+
 const { response } = require("../app");
+const { body, validationResult } = require('express-validator'); // <== Make sure this line exists
+const { Result } = require("pg");
+
+
+
+router.get("/login",async(req,res)=>{
+  res.render("login")
+})
+
+router.get("/sign-up",async(req,res)=>{
+  res.render("sign-up")
+})
+
+router.post("/signup",async(req,res)=>{
+   let rstResult;
+  rstResult  = await invoiceHelper.UserSIgnUp(req.body)
+  
+})
 
 /* GET home page. */
 router.get("/", function (req, res, next) {
@@ -15,7 +38,26 @@ router.get("/invoice", (req, res) => {
   res.render("invoice");
 });
 
-router.post("/submit-invoice", async (req, res) => {
+router.post("/submit-invoice",
+  [
+    body("strCustNameAjxKey").trim().notEmpty().withMessage("Customer Name Required"),
+    body("strCustEmailAjxKey").isEmail().withMessage("Valid Email is required"),
+    body("strstrInvoiceNoAjxKey").trim().notEmpty().withMessage("Invoice No is required"),
+    body("datDocumentAjxKey").notEmpty().withMessage("Document Date is required"),
+    body("discount").optional().isFloat({ min: 0, max: 100 }).withMessage("Discount must be between 0 and 100"),
+    // Validate each item inside arrItemDetailsAjxKey
+    body("arrItemDetailsAjxKey.*.strItemName").notEmpty().withMessage("Item name is required"),
+    body("arrItemDetailsAjxKey.*.intItemQty").isInt({ min: 1 }).withMessage("Quantity must be at least 1"),
+    body("arrItemDetailsAjxKey.*.dblItemprice").isFloat({ min: 0 }).withMessage("Price must be 0 or more"),
+    body("arrItemDetailsAjxKey.*.dblItemtax").optional().isFloat({ min: 0 }).withMessage("Tax must be 0 or more"),
+  ],
+  
+  
+  async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.json({ message: "VALIDATION_ERROR", errors: errors.array() });
+  }
   console.log("req.body", req.body);
 
   const objResponse = await invoiceHelper.saveinvoice(req.body);
@@ -79,5 +121,10 @@ router.get("/export-pdf", async (req, res) => {
 
   await pdfExports.getPdfExports(invoiceNumber, res);
 });
+
+router.post("/voice-invoice",
+             upload.single("audio"), voiceHelper.processVoice
+            );
+
 
 module.exports = router;

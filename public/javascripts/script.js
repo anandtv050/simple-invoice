@@ -86,9 +86,23 @@ function saveInvoice(blnSaveOrUpdate) {
       console.log("responesave ", response);
       if (response.message == "SAVE_SUCCESS") {
         alert(response.intInvoiceId);
+        $("#btnSaveInvoice").addClass("d-none");
         getInvoiceDetails(response.intInvoiceId);
+      } else if (response.message === "VALIDATION_ERROR") {
+        let errorList = response.errors
+          .map((err) => `<li>${err.msg}</li>`)
+          .join("");
+        $("#alertMessage")
+          .removeClass("alert-success")
+          .addClass("alert alert-danger")
+          .html(`<ul class="mb-0">${errorList}</ul>`)
+          .removeClass("d-none");
       } else {
-        alert("save_failed");
+        $("#alertMessage")
+          .removeClass("alert-success")
+          .addClass("alert alert-danger")
+          .text("Failed to save invoice due to unknown error.")
+          .removeClass("d-none");
       }
     },
   });
@@ -151,7 +165,7 @@ function fetchInvoiceDetails(strInvoiceNumber) {
         console.log("response get invoice ", response);
         const invoice = response[0]; // Access the first invoice in the array
         $("#datDocument").val(invoice.dat_document.split("T")[0]);
-        $("#datDue").val(invoice.dat_due.split("T")[0]);
+        // $("#datDue").val(invoice.dat_due.split("T")[0]);
         $("#tax_total").text(invoice.dbl_inv_tax);
         $("#discount").val(invoice.dbl_inv_discount);
         $("#grand_total").text(invoice.dbl_grand_total);
@@ -181,7 +195,7 @@ function fetchInvoiceDetails(strInvoiceNumber) {
           tbody.append(row);
         });
         showAlert("success", `Invoice ${strInvoiceNumber} loaded successfully`);
-
+        $("#btnSaveInvoice").addClass("d-none");
         calculateTotal();
       }
     },
@@ -309,3 +323,63 @@ $("#btnInvoicePdf").on("click", function () {
   link.click();
   document.body.removeChild(link);
 });
+
+////////////////////////////////////voice
+
+document.addEventListener("DOMContentLoaded", () => {
+  let mediaRecorder;
+  let audioChunks = [];
+
+  const button = document.getElementById("start-record");
+  const audioPlayer = document.getElementById("player");
+
+  button.addEventListener("click", async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.start();
+    button.textContent = "🎤 Recording...";
+
+    mediaRecorder.ondataavailable = (e) => {
+      audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      audioPlayer.src = URL.createObjectURL(audioBlob);
+      audioPlayer.hidden = false;
+
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "invoice.webm");
+
+      try {
+        const response = await fetch("/voice-invoice", {
+          method: "POST",
+          body: formData
+        });
+
+        const result = await response.json();
+        alert("Extracted Invoice:\n" + JSON.stringify(result, null, 2));
+      } catch (error) {
+        console.log(error);
+
+        alert("Error processing audio");
+      }
+
+      button.textContent = "🎙️ Speak Invoice";
+    };
+
+    // Stop recording automatically after 5 seconds
+    setTimeout(() => {
+      mediaRecorder.stop();
+    }, 5000);
+  });
+});
+speak("No invoice is loaded. Please load an invoice first.");
+
+function speak(text) {
+  const synth = window.speechSynthesis;
+  const utterance = new SpeechSynthesisUtterance(text);
+  synth.speak(utterance);
+}
